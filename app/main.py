@@ -4,22 +4,28 @@ import uvicorn
 
 import os
 import threading
-from playsound import playsound
+import pygame
 
+# Inicializar pygame mixer
+pygame.mixer.init()
 
+# Inicializar FastAPI
 app = FastAPI()
 
+# Cargar el servicio en un servidor ASGI Uvicorn
 if __name__ == "__main__":
+    print("http://localhost:10001/docs")
     uvicorn.run("main:app", port=10001, log_level="info", host="0.0.0.0")
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
 
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
+# @app.get("/")
+# def read_root():
+#     return {"Hello": "World"}
+#
+#
+# @app.get("/items/{item_id}")
+# def read_item(item_id: int, q: Union[str, None] = None):
+#     return {"item_id": item_id, "q": q}
 
 
 @app.get("/roman/{mitad_refran}")
@@ -37,6 +43,21 @@ def read_item(id: int):
         resultado = "Error: " + str(e)
     return {"Audio " + str(id): resultado}
 
+# Método que para la canción anterior y reproduce una canción en base a su ID
+def play_song_by_id(song_id, music_dir):
+    # Obtengo el nombre del archivo
+    song_file = get_song_filename_by_id(song_id, music_dir)
+    # Reproduzco la canción con el nombre
+    if song_file:
+        print(f"Reproduciendo: {song_file}")
+        # Mato el resto de hilos de música
+        stop_audio()
+        # Creo un nuevo hilo para la reproducción del audio
+        play_audio(song_file)
+    else:
+        raise Exception(f"No se encontró ninguna canción con el ID {song_id}")
+
+# Método que obtiene el nombre de una canción en base a su ID
 def get_song_filename_by_id(song_id, music_dir):
     # Listo todos los archivos en el directorio de música
     files = os.listdir(music_dir)
@@ -46,29 +67,13 @@ def get_song_filename_by_id(song_id, music_dir):
             return os.path.join(music_dir, file)
     return None
 
-def play_song_by_id(song_id, music_dir):
-    # Obtengo el nombre del archivo
-    song_file = get_song_filename_by_id(song_id, music_dir)
-    # Reproduzco la canción con el nombre
-    if song_file:
-        print(f"Reproduciendo: {song_file}")
-        # Mato el resto de hilos de música
-        kill_all_threads()
-        # Creo un nuevo hilo para la reproducción del audio
-        audio_thread = threading.Thread(target=play_audio, args=(song_file,))
-        audio_thread.start()
-    else:
-        raise Exception(f"No se encontró ninguna canción con el ID {song_id}")
-
-
+# Método que reproduce una canción en base a su nombre de archivo
 def play_audio(song_file):
-    playsound(song_file)
+    # Cargo la canción
+    pygame.mixer.music.load(song_file)
+    # Reproduzco la canción cargada
+    pygame.mixer.music.play()
 
-
-def kill_all_threads():
-    # Obtiene una lista de todos los hilos activos
-    for thread in threading.enumerate():
-        # Excluye el hilo principal (el que ejecuta este código)
-        if thread != threading.current_thread():
-            # Detiene el hilo actual
-            thread.join(timeout=0)
+# Método que para la canción anterior
+def stop_audio():
+    pygame.mixer.music.stop()
